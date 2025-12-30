@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF Edit</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#111a2e; --card:#0f1930; --text:#e8eefc; --muted:#a8b3cf;
+      --accent:#6aa7ff; --danger:#ff6a6a; --ok:#5dffa3;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 20% 0%, #162651 0%, transparent 60%),
+                  radial-gradient(900px 500px at 95% 15%, #1f2b5a 0%, transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      background: rgba(11,18,32,.75);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .wrap{ max-width:1240px; margin:0 auto; padding:14px 18px; }
+    .topbar{ display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .brand{ display:flex; align-items:center; gap:10px; min-width:220px; }
+    .logo{
+      width:34px; height:34px; border-radius:10px;
+      background: linear-gradient(135deg, rgba(106,167,255,.95), rgba(93,255,163,.85));
+      box-shadow: var(--shadow);
+    }
+    .brand h1{ font-size:16px; margin:0; letter-spacing:.2px; }
+    .brand .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+
+    .btn{
+      appearance:none; border:1px solid rgba(255,255,255,.12);
+      background: rgba(17,26,46,.9);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+      display:inline-flex; align-items:center; gap:8px;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:hover{ border-color: rgba(106,167,255,.45); background: rgba(22,38,81,.75); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ border-color: rgba(106,167,255,.55); background: rgba(106,167,255,.16); }
+    .btn.danger{ border-color: rgba(255,106,106,.55); background: rgba(255,106,106,.14); }
+    .btn.ok{ border-color: rgba(93,255,163,.55); background: rgba(93,255,163,.12); }
+    .btn[disabled]{ opacity:.5; cursor:not-allowed; }
+    input[type="file"]{ display:none; }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:16px;
+      padding:16px 18px 24px;
+    }
+    @media (max-width: 1020px){
+      .layout{ grid-template-columns: 1fr; }
+    }
+    .panel{
+      background: rgba(17,26,46,.7);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel .hd{
+      padding:14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .panel .hd h2{ margin:0; font-size:13px; letter-spacing:.3px; color:#d7e2ff; }
+    .panel .bd{ padding:14px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .field{ display:flex; flex-direction:column; gap:6px; width:100%; margin-bottom:12px; }
+    label{ font-size:12px; color:var(--muted); }
+    .select, .text, .num{
+      width:100%;
+      border-radius:12px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(15,25,48,.85);
+      color: var(--text);
+      outline:none;
+    }
+    .hint{ font-size:12px; color:var(--muted); line-height:1.35; }
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(15,25,48,.75);
+      color:#dbe6ff;
+    }
+    .hr{ height:1px; background: rgba(255,255,255,.08); margin: 12px 0; }
+    .mini{ font-size:11px; color:var(--muted); }
+
+    .canvasWrap{
+      background: rgba(17,26,46,.6);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+      min-height: 520px;
+    }
+    .viewerTop{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .viewerTop .status{ font-size:12px; color:var(--muted); }
+    .viewerTop .pager{ display:flex; align-items:center; gap:10px; }
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(15,25,48,.75);
+      color:#dbe6ff;
+    }
+    .viewerBody{
+      padding: 14px;
+      overflow:auto;
+      max-height: calc(100vh - 170px);
+    }
+    .pageShell{
+      position:relative;
+      margin: 0 auto 16px;
+      width: fit-content;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.15);
+    }
+    canvas.pdfCanvas{ display:block; }
+    canvas.overlayCanvas{
+      position:absolute; left:0; top:0;
+      pointer-events:auto;
+    }
+
+    .formLayer{
+      position:absolute; left:0; top:0;
+      pointer-events:none; /* inputs enable pointer events individually */
+    }
+    .pdfField{
+      position:absolute;
+      pointer-events:auto;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(15,25,48,.65);
+      color: var(--text);
+      padding: 6px 8px;
+      outline:none;
+      font-size: 13px;
+      backdrop-filter: blur(6px);
+    }
+    .pdfField:focus{
+      border-color: rgba(106,167,255,.7);
+      box-shadow: 0 0 0 3px rgba(106,167,255,.18);
+    }
+
+    .toast{
+      position:fixed;
+      left:50%; bottom:18px;
+      transform:translateX(-50%);
+      background: rgba(15,25,48,.92);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      color: var(--text);
+      display:none;
+      max-width: 90vw;
+      z-index: 999;
+    }
+
+    /* Signature modal */
+    dialog{
+      border:none;
+      border-radius: 18px;
+      padding:0;
+      background: rgba(17,26,46,.98);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      width:min(560px, 92vw);
+    }
+    dialog::backdrop{
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(3px);
+    }
+    .modalHd{
+      padding:14px 14px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modalBd{ padding:14px; }
+    .sigPad{
+      width:100%;
+      height:200px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(11,18,32,.55);
+      display:block;
+      touch-action: none;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>PDF Edit</h1>
+          <div class="sub">Upload · Fill · Highlight · Pen · Sign · Redact · Form fields · Export</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <label class="btn primary" for="fileInput">📄 Upload PDF</label>
+        <input id="fileInput" type="file" accept="application/pdf" />
+        <button id="downloadBtn" class="btn ok" disabled>⬇️ Download edited PDF</button>
+        <button id="resetBtn" class="btn danger" disabled>🧹 Reset edits</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    <div class="hd">
+      <h2>TOOLS</h2>
+      <span class="pill" id="toolPill">No PDF loaded</span>
+    </div>
+    <div class="bd">
+      <div class="field">
+        <label for="toolSelect">Mode</label>
+        <select id="toolSelect" class="select" disabled>
+          <option value="pan">Pan / Select</option>
+          <option value="text">Fill text</option>
+          <option value="date">Add date stamp</option>
+          <option value="highlight">Highlight</option>
+          <option value="pen">Freehand pen</option>
+          <option value="redact">Redact (black box)</option>
+          <option value="sign">Sign (place signature)</option>
+          <option value="form">Form field (text box)</option>
+        </select>
+        <div class="hint">
+          Tips: <span class="kbd">Mouse wheel</span> to scroll pages ·
+          <span class="kbd">←</span>/<span class="kbd">→</span> to change page ·
+          Hold <span class="kbd">Shift</span> while dragging to constrain (box) or smooth (pen).
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="field">
+        <label>Text settings</label>
+        <input id="textValue" class="text" placeholder="Type text to place…" disabled />
+        <div class="row">
+          <div style="flex:1; min-width:120px">
+            <label for="textSize" class="mini">Font size</label>
+            <input id="textSize" class="num" type="number" min="8" max="72" value="14" disabled />
+          </div>
+          <div style="flex:1; min-width:120px">
+            <label for="textOpacity" class="mini">Opacity</label>
+            <input id="textOpacity" class="num" type="number" min="0.1" max="1" step="0.1" value="1" disabled />
+          </div>
+        </div>
+        <div class="hint">In <b>Fill text</b> mode, click on the page to place the text.</div>
+      </div>
+
+      <div class="field">
+        <label>Date stamp</label>
+        <input id="dateValue" class="text" placeholder="YYYY-MM-DD (leave blank for today's date)" disabled />
+        <div class="row">
+          <div style="flex:1; min-width:160px">
+            <label for="dateFormat" class="mini">Format</label>
+            <select id="dateFormat" class="select" disabled>
+              <option value="iso">YYYY-MM-DD</option>
+              <option value="long">27 December 2025</option>
+              <option value="short">27/12/2025</option>
+            </select>
+          </div>
+          <div style="flex:1; min-width:120px">
+            <label for="dateSize" class="mini">Font size</label>
+            <input id="dateSize" class="num" type="number" min="8" max="72" value="12" disabled />
+          </div>
+        </div>
+        <div class="hint">In <b>Add date stamp</b> mode, click to place a date.</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="field">
+        <label>Pen & highlight</label>
+        <div class="row">
+          <div style="flex:1; min-width:140px">
+            <label class="mini" for="strokeWidth">Stroke width</label>
+            <input id="strokeWidth" class="num" type="number" min="1" max="24" value="3" disabled />
+          </div>
+          <div style="flex:1; min-width:140px">
+            <label class="mini" for="highlightOpacity">Highlight opacity</label>
+            <input id="highlightOpacity" class="num" type="number" min="0.1" max="0.8" step="0.05" value="0.35" disabled />
+          </div>
+        </div>
+        <div class="hint">Highlight is a semi-transparent rectangle; Pen is freehand ink.</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="field">
+        <label>Signatures (multi-signature)</label>
+        <div class="row">
+          <select id="sigSelect" class="select" disabled style="flex:1; min-width:180px;">
+            <option value="">No signatures yet</option>
+          </select>
+          <button id="makeSigBtn" class="btn" disabled>✍️ New signature</button>
+          <button id="deleteSigBtn" class="btn danger" disabled>🗑️ Delete</button>
+        </div>
+        <div class="hint">In <b>Sign</b> mode, click to place the selected signature.</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="field">
+        <label>Edits</label>
+        <div class="row">
+          <button id="undoBtn" class="btn" disabled>↩️ Undo last</button>
+          <button id="clearPageBtn" class="btn danger" disabled>🧽 Clear page edits</button>
+        </div>
+        <div class="hint">Undo works for: text, date, highlight, pen, redaction, signature, form field.</div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="hint">Privacy: everything is processed locally in your browser. (No server upload.)</div>
+    </div>
+  </section>
+
+  <section class="canvasWrap">
+    <div class="viewerTop">
+      <div class="status" id="statusText">Upload a PDF to begin.</div>
+      <div class="pager">
+        <button id="prevBtn" class="btn" disabled>⬅️ Prev</button>
+        <span class="pill" id="pageIndicator">Page – / –</span>
+        <button id="nextBtn" class="btn" disabled>Next ➡️</button>
+      </div>
+    </div>
+    <div class="viewerBody" id="viewer"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="sigDialog">
+  <div class="modalHd">
+    <div>
+      <div style="font-weight:700; font-size:13px;">Create Signature</div>
+      <div class="mini">Draw with mouse/touch · Give it a name · Save to use later</div>
+    </div>
+    <button class="btn danger" id="closeSig">✖</button>
+  </div>
+  <div class="modalBd">
+    <div class="field">
+      <label for="sigName">Signature name</label>
+      <input id="sigName" class="text" placeholder="e.g., Korim (full)" />
+    </div>
+    <canvas id="sigCanvas" class="sigPad" width="900" height="360"></canvas>
+    <div class="row" style="margin-top:12px; justify-content:space-between;">
+      <div class="row">
+        <button class="btn" id="sigClear">🧼 Clear</button>
+      </div>
+      <div class="row">
+        <button class="btn ok" id="sigSave">✅ Save signature</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- PDF.js + PDF-Lib from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.worker.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // UI
+  const fileInput = $("fileInput");
+  const viewer = $("viewer");
+  const statusText = $("statusText");
+  const toolSelect = $("toolSelect");
+  const toolPill = $("toolPill");
+  const pageIndicator = $("pageIndicator");
+  const prevBtn = $("prevBtn");
+  const nextBtn = $("nextBtn");
+  const downloadBtn = $("downloadBtn");
+  const resetBtn = $("resetBtn");
+  const undoBtn = $("undoBtn");
+  const clearPageBtn = $("clearPageBtn");
+
+  const textValue = $("textValue");
+  const textSize = $("textSize");
+  const textOpacity = $("textOpacity");
+
+  const dateValue = $("dateValue");
+  const dateFormat = $("dateFormat");
+  const dateSize = $("dateSize");
+
+  const strokeWidth = $("strokeWidth");
+  const highlightOpacity = $("highlightOpacity");
+
+  // Signatures
+  const sigSelect = $("sigSelect");
+  const makeSigBtn = $("makeSigBtn");
+  const deleteSigBtn = $("deleteSigBtn");
+
+  // Signature modal
+  const sigDialog = $("sigDialog");
+  const sigCanvas = $("sigCanvas");
+  const sigName = $("sigName");
+  const sigClear = $("sigClear");
+  const sigSave = $("sigSave");
+  const closeSig = $("closeSig");
+
+  // Toast
+  const toast = $("toast");
+  let toastTimer = null;
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.style.display = "none", 2200);
+  };
+
+  // PDF.js config
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.worker.min.js";
+  }
+
+  // State
+  let pdfBytes = null;
+  let pdfDocJs = null;
+  let pageCount = 0;
+  let currentPage = 1;
+
+  // Per-page rendered dimensions (for mapping)
+  const pageViews = new Map(); // pageNum -> {scale, width, height}
+
+  // Multi signatures
+  // signatures[]: {id, name, dataUrl}
+  const signatures = [];
+  let activeSigId = null;
+
+  // Edits stored per page
+  // texts: {x,y,size,opacity,value}
+  // dates: {x,y,size,value}
+  // highlights: {x,y,w,h,opacity}
+  // pen: {points:[{x,y}...], width}
+  // redactions: {x,y,w,h}
+  // placedSigs: {x,y,w,h, sigId}
+  // fields: {id,x,y,w,h,value,fontSize}
+  const edits = new Map(); // pageNum -> state object
+  const history = [];      // stack of {pageNum, type, item}
+
+  const ensurePageEdits = (pageNum) => {
+    if (!edits.has(pageNum)) {
+      edits.set(pageNum, {
+        texts: [], dates: [], highlights: [], pen: [], redactions: [], placedSigs: [], fields: []
+      });
+    }
+    return edits.get(pageNum);
+  };
+
+  // Tool
+  let tool = "pan";
+  const toolLabel = (t) => ({
+    pan: "Pan / Select",
+    text: "Fill text",
+    date: "Add date stamp",
+    highlight: "Highlight",
+    pen: "Freehand pen",
+    redact: "Redact",
+    sign: "Sign",
+    form: "Form field"
+  }[t] || t);
+
+  const setTool = (t) => {
+    tool = t;
+    toolSelect.value = t;
+    toolPill.textContent = pdfDocJs ? `Mode: ${toolLabel(t)}` : "No PDF loaded";
+
+    const enabled = !!pdfDocJs;
+
+    // Text controls
+    const textOn = enabled && tool === "text";
+    textValue.disabled = !textOn;
+    textSize.disabled = !textOn;
+    textOpacity.disabled = !textOn;
+
+    // Date controls
+    const dateOn = enabled && tool === "date";
+    dateValue.disabled = !dateOn;
+    dateFormat.disabled = !dateOn;
+    dateSize.disabled = !dateOn;
+
+    // Pen/highlight controls
+    const drawOn = enabled && (tool === "pen" || tool === "highlight");
+    strokeWidth.disabled = !drawOn;
+    highlightOpacity.disabled = !(enabled && tool === "highlight");
+  };
+
+  const enableUi = (enabled) => {
+    toolSelect.disabled = !enabled;
+    prevBtn.disabled = !enabled;
+    nextBtn.disabled = !enabled;
+    downloadBtn.disabled = !enabled;
+    resetBtn.disabled = !enabled;
+    undoBtn.disabled = !enabled;
+    clearPageBtn.disabled = !enabled;
+    makeSigBtn.disabled = !enabled;
+    deleteSigBtn.disabled = !enabled;
+    sigSelect.disabled = !enabled;
+
+    // tool-dependent handled in setTool
+    setTool(toolSelect.value || "pan");
+  };
+
+  const updatePager = () => {
+    pageIndicator.textContent = pdfDocJs ? `Page ${currentPage} / ${pageCount}` : `Page – / –`;
+    prevBtn.disabled = !(pdfDocJs && currentPage > 1);
+    nextBtn.disabled = !(pdfDocJs && currentPage < pageCount);
+  };
+
+  const clearViewer = () => {
+    viewer.innerHTML = "";
+    pageViews.clear();
+  };
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  function currentDateString() {
+    const now = new Date();
+    const fmt = dateFormat.value || "iso";
+    const z2 = (n) => String(n).padStart(2, "0");
+    if (fmt === "iso") {
+      return `${now.getFullYear()}-${z2(now.getMonth()+1)}-${z2(now.getDate())}`;
+    }
+    if (fmt === "short") {
+      return `${z2(now.getDate())}/${z2(now.getMonth()+1)}/${now.getFullYear()}`;
+    }
+    // long
+    return now.toLocaleDateString(undefined, { day: "2-digit", month: "long", year: "numeric" });
+  }
+
+  // ===== Rendering =====
+  async function renderPage(pageNum) {
+    const page = await pdfDocJs.getPage(pageNum);
+
+    const desiredWidth = clamp(viewer.clientWidth - 40, 520, 1040);
+    const vp1 = page.getViewport({ scale: 1.0 });
+    const scale = desiredWidth / vp1.width;
+    const viewport = page.getViewport({ scale });
+
+    pageViews.set(pageNum, { scale, width: viewport.width, height: viewport.height });
+
+    const shell = document.createElement("div");
+    shell.className = "pageShell";
+    shell.dataset.page = String(pageNum);
+
+    const pdfCanvas = document.createElement("canvas");
+    pdfCanvas.className = "pdfCanvas";
+    pdfCanvas.width = Math.floor(viewport.width);
+    pdfCanvas.height = Math.floor(viewport.height);
+
+    const formLayer = document.createElement("div");
+    formLayer.className = "formLayer";
+    formLayer.style.width = pdfCanvas.width + "px";
+    formLayer.style.height = pdfCanvas.height + "px";
+    formLayer.dataset.page = String(pageNum);
+
+    const overlay = document.createElement("canvas");
+    overlay.className = "overlayCanvas";
+    overlay.width = pdfCanvas.width;
+    overlay.height = pdfCanvas.height;
+    overlay.dataset.page = String(pageNum);
+
+    shell.appendChild(pdfCanvas);
+    shell.appendChild(formLayer);
+    shell.appendChild(overlay);
+    viewer.appendChild(shell);
+
+    const ctx = pdfCanvas.getContext("2d");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    rebuildFormInputs(pageNum);
+    redrawOverlay(pageNum);
+
+    attachOverlayEvents(overlay);
+  }
+
+  function rebuildFormInputs(pageNum) {
+    const shell = viewer.querySelector(`.pageShell[data-page="${pageNum}"]`);
+    const layer = shell?.querySelector(".formLayer");
+    if (!layer) return;
+
+    layer.innerHTML = "";
+    const p = ensurePageEdits(pageNum);
+
+    for (const f of p.fields) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "pdfField";
+      input.value = f.value ?? "";
+      input.style.left = f.x + "px";
+      input.style.top = f.y + "px";
+      input.style.width = f.w + "px";
+      input.style.height = f.h + "px";
+      input.style.fontSize = (f.fontSize || 13) + "px";
+      input.dataset.fieldId = f.id;
+
+      input.addEventListener("input", () => {
+        f.value = input.value;
+      });
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") input.blur();
+        if (e.key === "Backspace" && (input.value === "")) {
+          // allow deleting empty field with Ctrl+Backspace (to avoid accidents)
+          if (e.ctrlKey || e.metaKey) {
+            removeField(pageNum, f.id);
+            showToast("Field removed.");
+          }
+        }
+      });
+
+      layer.appendChild(input);
+    }
+  }
+
+  function redrawOverlay(pageNum) {
+    const shell = viewer.querySelector(`.pageShell[data-page="${pageNum}"]`);
+    const overlay = shell?.querySelector("canvas.overlayCanvas");
+    if (!overlay) return;
+
+    const ctx = overlay.getContext("2d");
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    const p = ensurePageEdits(pageNum);
+
+    // Highlights
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 235, 59, 1)"; // yellow
+    for (const h of p.highlights) {
+      ctx.globalAlpha = clamp(Number(h.opacity ?? 0.35), 0.05, 0.8);
+      ctx.fillRect(h.x, h.y, h.w, h.h);
+    }
+    ctx.restore();
+
+    // Pen strokes
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(10,10,10,1)";
+    for (const s of p.pen) {
+      const pts = s.points || [];
+      if (pts.length < 2) continue;
+      ctx.lineWidth = clamp(Number(s.width || 3), 1, 24);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Redactions
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,1)";
+    for (const r of p.redactions) ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.restore();
+
+    // Form field outlines (visual, export will flatten)
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 1;
+    for (const f of p.fields) ctx.strokeRect(f.x, f.y, f.w, f.h);
+    ctx.restore();
+
+    // Text
+    for (const t of p.texts) {
+      ctx.save();
+      ctx.globalAlpha = clamp(Number(t.opacity ?? 1), 0.05, 1);
+      ctx.fillStyle = "rgba(20,20,20,1)";
+      ctx.font = `${t.size || 14}px sans-serif`;
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "rgba(255,255,255,0.65)";
+      ctx.shadowBlur = 2;
+      ctx.fillText(t.value, t.x, t.y);
+      ctx.restore();
+    }
+
+    // Dates
+    for (const d of p.dates) {
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(20,20,20,1)";
+      ctx.font = `${d.size || 12}px sans-serif`;
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "rgba(255,255,255,0.65)";
+      ctx.shadowBlur = 2;
+      ctx.fillText(d.value, d.x, d.y);
+      ctx.restore();
+    }
+
+    // Placed signatures
+    // (Draw as images if available)
+    for (const ps of p.placedSigs) {
+      const sig = signatures.find(s => s.id === ps.sigId);
+      if (!sig) continue;
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, ps.x, ps.y, ps.w, ps.h);
+      };
+      img.src = sig.dataUrl;
+    }
+  }
+
+  // ===== Interactions =====
+  let drag = null; // {kind, pageNum, ...}
+
+  function attachOverlayEvents(overlay) {
+    overlay.onpointerdown = (e) => {
+      if (!pdfDocJs) return;
+      const pageNum = Number(overlay.dataset.page);
+      const rect = overlay.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // If clicked on an input, ignore (inputs are in form layer)
+      if (tool === "pan") return;
+
+      if (tool === "text") {
+        const v = (textValue.value || "").trim();
+        if (!v) return showToast("Type some text first.");
+        const p = ensurePageEdits(pageNum);
+        const item = { x, y, value: v, size: Number(textSize.value || 14), opacity: Number(textOpacity.value || 1) };
+        p.texts.push(item);
+        history.push({ pageNum, type: "text", item });
+        redrawOverlay(pageNum);
+        return;
+      }
+
+      if (tool === "date") {
+        const custom = (dateValue.value || "").trim();
+        const v = custom || currentDateString();
+        const p = ensurePageEdits(pageNum);
+        const item = { x, y, value: v, size: Number(dateSize.value || 12) };
+        p.dates.push(item);
+        history.push({ pageNum, type: "date", item });
+        redrawOverlay(pageNum);
+        return;
+      }
+
+      if (tool === "sign") {
+        if (!activeSigId) return showToast("Create/select a signature first.");
+        const p = ensurePageEdits(pageNum);
+        const w = 180, h = 70;
+        const item = { x: clamp(x, 0, overlay.width - w), y: clamp(y, 0, overlay.height - h), w, h, sigId: activeSigId };
+        p.placedSigs.push(item);
+        history.push({ pageNum, type: "placedSig", item });
+        redrawOverlay(pageNum);
+        return;
+      }
+
+      if (tool === "form") {
+        overlay.setPointerCapture(e.pointerId);
+        drag = { kind: "box", pageNum, startX: x, startY: y, curX: x, curY: y, shift: e.shiftKey, tool: "form" };
+        return;
+      }
+
+      if (tool === "redact" || tool === "highlight") {
+        overlay.setPointerCapture(e.pointerId);
+        drag = { kind: "box", pageNum, startX: x, startY: y, curX: x, curY: y, shift: e.shiftKey, tool };
+        return;
+      }
+
+      if (tool === "pen") {
+        overlay.setPointerCapture(e.pointerId);
+        const w = clamp(Number(strokeWidth.value || 3), 1, 24);
+        drag = { kind: "pen", pageNum, points: [{x,y}], width: w, shift: e.shiftKey };
+        return;
+      }
+    };
+
+    overlay.onpointermove = (e) => {
+      if (!drag) return;
+      const shell = viewer.querySelector(`.pageShell[data-page="${drag.pageNum}"]`);
+      const o = shell?.querySelector("canvas.overlayCanvas");
+      if (!o) return;
+
+      const rect = o.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      if (drag.kind === "box") {
+        drag.curX = x; drag.curY = y;
+        redrawOverlay(drag.pageNum);
+        // preview
+        const ctx = o.getContext("2d");
+        const r = rectFromDrag(drag);
+        ctx.save();
+        if (drag.tool === "redact") ctx.fillStyle = "rgba(0,0,0,0.85)";
+        else if (drag.tool === "highlight") {
+          ctx.fillStyle = "rgba(255,235,59,1)";
+          ctx.globalAlpha = clamp(Number(highlightOpacity.value || 0.35), 0.05, 0.8);
+        } else if (drag.tool === "form") {
+          ctx.strokeStyle = "rgba(106,167,255,0.9)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(r.x0, r.y0, r.w, r.h);
+          ctx.restore();
+          return;
+        }
+        ctx.fillRect(r.x0, r.y0, r.w, r.h);
+        ctx.restore();
+        return;
+      }
+
+      if (drag.kind === "pen") {
+        // add points (optionally smooth by skipping if shift)
+        const last = drag.points[drag.points.length - 1];
+        const dx = x - last.x, dy = y - last.y;
+        const dist2 = dx*dx + dy*dy;
+        const minDist = drag.shift ? 18 : 6; // smoother if shift
+        if (dist2 >= minDist*minDist) {
+          drag.points.push({x,y});
+          // preview: draw incremental
+          redrawOverlay(drag.pageNum);
+          const ctx = o.getContext("2d");
+          ctx.save();
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(10,10,10,1)";
+          ctx.lineWidth = drag.width;
+          ctx.beginPath();
+          const pts = drag.points;
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+          ctx.stroke();
+          ctx.restore();
+        }
+        return;
+      }
+    };
+
+    overlay.onpointerup = () => {
+      if (!drag) return;
+      const pageNum = drag.pageNum;
+      const p = ensurePageEdits(pageNum);
+
+      if (drag.kind === "box") {
+        const r = rectFromDrag(drag);
+        drag = null;
+
+        if (r.w < 6 || r.h < 6) { redrawOverlay(pageNum); return; }
+
+        if (tool === "redact") {
+          const item = { x: r.x0, y: r.y0, w: r.w, h: r.h };
+          p.redactions.push(item);
+          history.push({ pageNum, type: "redact", item });
+          redrawOverlay(pageNum);
+          return;
+        }
+        if (tool === "highlight") {
+          const item = { x: r.x0, y: r.y0, w: r.w, h: r.h, opacity: Number(highlightOpacity.value || 0.35) };
+          p.highlights.push(item);
+          history.push({ pageNum, type: "highlight", item });
+          redrawOverlay(pageNum);
+          return;
+        }
+        if (tool === "form") {
+          const id = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
+          const item = {
+            id,
+            x: r.x0,
+            y: r.y0,
+            w: clamp(r.w, 80, 520),
+            h: clamp(r.h, 26, 64),
+            value: "",
+            fontSize: 13
+          };
+          p.fields.push(item);
+          history.push({ pageNum, type: "field", item });
+          rebuildFormInputs(pageNum);
+          redrawOverlay(pageNum);
+          // focus new input
+          const shell = viewer.querySelector(`.pageShell[data-page="${pageNum}"]`);
+          const input = shell?.querySelector(`.pdfField[data-field-id="${id}"]`);
+          if (input) input.focus();
+          return;
+        }
+
+        return;
+      }
+
+      if (drag.kind === "pen") {
+        const pts = drag.points || [];
+        const item = { points: pts.slice(), width: drag.width };
+        drag = null;
+        if (pts.length < 2) { redrawOverlay(pageNum); return; }
+        p.pen.push(item);
+        history.push({ pageNum, type: "pen", item });
+        redrawOverlay(pageNum);
+        return;
+      }
+    };
+
+    overlay.onpointercancel = () => { drag = null; };
+  }
+
+  function rectFromDrag(d) {
+    const x1 = d.startX, y1 = d.startY, x2 = d.curX, y2 = d.curY;
+    let x0 = Math.min(x1, x2), y0 = Math.min(y1, y2);
+    let w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+    if (d.shift) { // square
+      const s = Math.max(w, h);
+      w = s; h = s;
+      x0 = (x2 < x1) ? x1 - s : x1;
+      y0 = (y2 < y1) ? y1 - s : y1;
+    }
+    return { x0, y0, w, h };
+  }
+
+  // ===== Paging =====
+  window.addEventListener("keydown", (e) => {
+    if (!pdfDocJs) return;
+    if (e.key === "ArrowLeft") gotoPage(currentPage - 1);
+    if (e.key === "ArrowRight") gotoPage(currentPage + 1);
+  });
+
+  function gotoPage(n) {
+    if (!pdfDocJs) return;
+    currentPage = clamp(n, 1, pageCount);
+    updatePager();
+    const shell = viewer.querySelector(`.pageShell[data-page="${currentPage}"]`);
+    if (shell) shell.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ===== Undo / clear =====
+  function removeField(pageNum, fieldId) {
+    const p = ensurePageEdits(pageNum);
+    const idx = p.fields.findIndex(f => f.id === fieldId);
+    if (idx >= 0) p.fields.splice(idx, 1);
+    for (let i = history.length - 1; i >= 0; i--) {
+      const h = history[i];
+      if (h.pageNum === pageNum && h.type === "field" && h.item?.id === fieldId) history.splice(i, 1);
+    }
+    rebuildFormInputs(pageNum);
+    redrawOverlay(pageNum);
+  }
+
+  undoBtn.addEventListener("click", () => {
+    const last = history.pop();
+    if (!last) return showToast("Nothing to undo.");
+    const p = ensurePageEdits(last.pageNum);
+
+    const removeByRef = (arr, ref) => {
+      const i = arr.indexOf(ref);
+      if (i >= 0) arr.splice(i, 1);
+    };
+
+    if (last.type === "text") removeByRef(p.texts, last.item);
+    if (last.type === "date") removeByRef(p.dates, last.item);
+    if (last.type === "highlight") removeByRef(p.highlights, last.item);
+    if (last.type === "pen") removeByRef(p.pen, last.item);
+    if (last.type === "redact") removeByRef(p.redactions, last.item);
+    if (last.type === "placedSig") removeByRef(p.placedSigs, last.item);
+    if (last.type === "field") {
+      p.fields = p.fields.filter(f => f !== last.item);
+      rebuildFormInputs(last.pageNum);
+    }
+
+    redrawOverlay(last.pageNum);
+  });
+
+  clearPageBtn.addEventListener("click", () => {
+    if (!pdfDocJs) return;
+    edits.set(currentPage, { texts:[], dates:[], highlights:[], pen:[], redactions:[], placedSigs:[], fields:[] });
+    for (let i = history.length - 1; i >= 0; i--) if (history[i].pageNum === currentPage) history.splice(i, 1);
+    rebuildFormInputs(currentPage);
+    redrawOverlay(currentPage);
+    showToast("Cleared current page edits.");
+  });
+
+  resetBtn.addEventListener("click", () => {
+    edits.clear();
+    history.length = 0;
+    if (pdfDocJs) {
+      for (let i = 1; i <= pageCount; i++) {
+        rebuildFormInputs(i);
+        redrawOverlay(i);
+      }
+    }
+    showToast("All edits reset.");
+  });
+
+  // Tool select
+  toolSelect.addEventListener("change", (e) => setTool(e.target.value));
+
+  // ===== Signatures (multi) =====
+  function refreshSigSelect() {
+    sigSelect.innerHTML = "";
+    if (signatures.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No signatures yet";
+      sigSelect.appendChild(opt);
+      activeSigId = null;
+      return;
+    }
+    for (const s of signatures) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name || "Signature";
+      sigSelect.appendChild(opt);
+    }
+    if (!activeSigId) activeSigId = signatures[0].id;
+    sigSelect.value = activeSigId;
+  }
+
+  sigSelect.addEventListener("change", () => {
+    activeSigId = sigSelect.value || null;
+  });
+
+  deleteSigBtn.addEventListener("click", () => {
+    if (!activeSigId) return;
+    const idx = signatures.findIndex(s => s.id === activeSigId);
+    if (idx < 0) return;
+    const removed = signatures.splice(idx, 1)[0];
+
+    // Remove placements of this signature from all pages
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      const p = ensurePageEdits(pageNum);
+      p.placedSigs = p.placedSigs.filter(ps => ps.sigId !== removed.id);
+      // remove matching history items
+      for (let i = history.length - 1; i >= 0; i--) {
+        const h = history[i];
+        if (h.type === "placedSig" && h.item?.sigId === removed.id) history.splice(i, 1);
+      }
+      redrawOverlay(pageNum);
+    }
+
+    activeSigId = signatures[0]?.id || null;
+    refreshSigSelect();
+    showToast("Signature deleted.");
+  });
+
+  // Signature pad
+  function initSigPad() {
+    const ctx = sigCanvas.getContext("2d");
+    ctx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(255,255,255,0.92)";
+
+    let drawing = false;
+    let last = null;
+
+    const getPos = (ev) => {
+      const r = sigCanvas.getBoundingClientRect();
+      const x = (ev.clientX - r.left) * (sigCanvas.width / r.width);
+      const y = (ev.clientY - r.top) * (sigCanvas.height / r.height);
+      return {x,y};
+    };
+
+    sigCanvas.onpointerdown = (ev) => {
+      sigCanvas.setPointerCapture(ev.pointerId);
+      drawing = true;
+      last = getPos(ev);
+    };
+    sigCanvas.onpointermove = (ev) => {
+      if (!drawing) return;
+      const p = getPos(ev);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+    };
+    sigCanvas.onpointerup = () => { drawing = false; last = null; };
+    sigCanvas.onpointercancel = () => { drawing = false; last = null; };
+  }
+
+  makeSigBtn.addEventListener("click", () => {
+    initSigPad();
+    sigName.value = "";
+    sigDialog.showModal();
+  });
+  closeSig.addEventListener("click", () => sigDialog.close());
+  sigClear.addEventListener("click", () => {
+    const ctx = sigCanvas.getContext("2d");
+    ctx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+  });
+  sigSave.addEventListener("click", () => {
+    const name = (sigName.value || "").trim() || `Signature ${signatures.length + 1}`;
+    const dataUrl = sigCanvas.toDataURL("image/png");
+    const id = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
+    signatures.push({ id, name, dataUrl });
+    activeSigId = id;
+    refreshSigSelect();
+    sigDialog.close();
+    // redraw all pages (signatures may be placed later)
+    if (pdfDocJs) for (let i=1;i<=pageCount;i++) redrawOverlay(i);
+    showToast("Signature saved.");
+  });
+
+  // ===== Load PDF =====
+  async function renderAllPages() {
+    clearViewer();
+    statusText.textContent = "Rendering…";
+    for (let i = 1; i <= pageCount; i++) await renderPage(i);
+    statusText.textContent = "Ready. Choose a tool and edit.";
+  }
+
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      showToast("Please choose a PDF file.");
+      return;
+    }
+
+    statusText.textContent = "Loading PDF…";
+    enableUi(false);
+    edits.clear();
+    history.length = 0;
+
+    pdfBytes = new Uint8Array(await file.arrayBuffer());
+
+    try {
+      pdfDocJs = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      pageCount = pdfDocJs.numPages;
+      currentPage = 1;
+      updatePager();
+
+      enableUi(true);
+      setTool("pan");
+      statusText.textContent = `Loaded: ${file.name}`;
+      toolPill.textContent = `Mode: ${toolLabel(tool)}`;
+
+      // initialize signature dropdown
+      refreshSigSelect();
+
+      await renderAllPages();
+      gotoPage(1);
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = "Failed to load PDF.";
+      showToast("Failed to load PDF.");
+      enableUi(false);
+    }
+  });
+
+  prevBtn.addEventListener("click", () => gotoPage(currentPage - 1));
+  nextBtn.addEventListener("click", () => gotoPage(currentPage + 1));
+
+  // ===== Export (flatten) =====
+  downloadBtn.addEventListener("click", async () => {
+    if (!pdfBytes) return;
+
+    try {
+      downloadBtn.disabled = true;
+      statusText.textContent = "Exporting edited PDF…";
+
+      const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+      const pdf = await PDFDocument.load(pdfBytes);
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+      // Embed signature images once
+      const sigEmbeds = new Map(); // sigId -> embedded image
+      for (const s of signatures) {
+        try {
+          sigEmbeds.set(s.id, await pdf.embedPng(dataUrlToUint8(s.dataUrl)));
+        } catch {}
+      }
+
+      const getView = (pageNum) => pageViews.get(pageNum);
+
+      for (let pageNum = 1; pageNum <= pdf.getPageCount(); pageNum++) {
+        const st = ensurePageEdits(pageNum);
+        const page = pdf.getPage(pageNum - 1);
+        const { width, height } = page.getSize();
+
+        const view = getView(pageNum);
+        if (!view) continue;
+        const sx = width / view.width;
+        const sy = height / view.height;
+
+        // Highlights (draw translucent rectangle)
+        for (const h of st.highlights) {
+          page.drawRectangle({
+            x: h.x * sx,
+            y: height - (h.y + h.h) * sy,
+            width: h.w * sx,
+            height: h.h * sy,
+            color: rgb(1, 0.93, 0.23),
+            opacity: clamp(Number(h.opacity ?? 0.35), 0.05, 0.8),
+          });
+        }
+
+        // Pen strokes (draw lines)
+        for (const stroke of st.pen) {
+          const pts = stroke.points || [];
+          if (pts.length < 2) continue;
+          const thickness = clamp(Number(stroke.width || 3), 1, 24);
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i-1], b = pts[i];
+            page.drawLine({
+              start: { x: a.x * sx, y: height - a.y * sy },
+              end:   { x: b.x * sx, y: height - b.y * sy },
+              thickness: thickness * ((sx + sy) / 2),
+              color: rgb(0.06, 0.06, 0.06),
+              opacity: 1
+            });
+          }
+        }
+
+        // Redactions
+        for (const r of st.redactions) {
+          page.drawRectangle({
+            x: r.x * sx,
+            y: height - (r.y + r.h) * sy,
+            width: r.w * sx,
+            height: r.h * sy,
+            color: rgb(0,0,0),
+            opacity: 1
+          });
+        }
+
+        // Form fields: draw border and text value
+        for (const f of st.fields) {
+          page.drawRectangle({
+            x: f.x * sx,
+            y: height - (f.y + f.h) * sy,
+            width: f.w * sx,
+            height: f.h * sy,
+            borderColor: rgb(0.75, 0.78, 0.86),
+            borderWidth: 1,
+            color: rgb(1,1,1),
+            opacity: 0.0, // keep border only (fill transparent)
+          });
+          const val = String(f.value ?? "");
+          const size = clamp(Number(f.fontSize || 13), 8, 24);
+          if (val) {
+            page.drawText(val, {
+              x: (f.x + 6) * sx,
+              y: height - (f.y * sy) - (size * 1.0),
+              size,
+              font,
+              color: rgb(0.08, 0.08, 0.08),
+              opacity: 1
+            });
+          }
+        }
+
+        // Text
+        for (const t of st.texts) {
+          const size = clamp(Number(t.size || 14), 6, 120);
+          const opacity = clamp(Number(t.opacity ?? 1), 0.05, 1);
+          page.drawText(String(t.value || ""), {
+            x: t.x * sx,
+            y: height - (t.y * sy) - (size * 0.95),
+            size,
+            font,
+            color: rgb(0.08, 0.08, 0.08),
+            opacity
+          });
+        }
+
+        // Dates
+        for (const d of st.dates) {
+          const size = clamp(Number(d.size || 12), 6, 72);
+          page.drawText(String(d.value || ""), {
+            x: d.x * sx,
+            y: height - (d.y * sy) - (size * 0.95),
+            size,
+            font,
+            color: rgb(0.08, 0.08, 0.08),
+            opacity: 1
+          });
+        }
+
+        // Signatures
+        for (const ps of st.placedSigs) {
+          const img = sigEmbeds.get(ps.sigId);
+          if (!img) continue;
+          page.drawImage(img, {
+            x: ps.x * sx,
+            y: height - (ps.y + ps.h) * sy,
+            width: ps.w * sx,
+            height: ps.h * sy,
+            opacity: 1
+          });
+        }
+      }
+
+      const out = await pdf.save();
+      const blob = new Blob([out], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pdf-edit-export.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      statusText.textContent = "Export complete.";
+      showToast("Downloaded edited PDF.");
+    } catch (err) {
+      console.error(err);
+      showToast("Export failed.");
+      statusText.textContent = "Export failed.";
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
+
+  function dataUrlToUint8(dataUrl) {
+    const [meta, b64] = dataUrl.split(",");
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  // ===== Resize -> rerender =====
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    if (!pdfDocJs) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(async () => {
+      const oldPage = currentPage;
+      await renderAllPages();
+      gotoPage(oldPage);
+    }, 260);
+  });
+
+  // Initial UI
+  setTool("pan");
+  enableUi(false);
+
+  // Helpful default date placeholder uses current date
+  dateValue.placeholder = `${currentDateString()} (leave blank for today's date)`;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.7">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html lang="en"&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8" /&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;PDF Editor with OCR &amp; Export&lt;/title&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- PDF.js (generic build, classic script usage) --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.min.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Tesseract.js (browser OCR) --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- jsPDF (for exporting edited PDF) --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"&gt;&lt;/script&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>:root {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #f5f5f7;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #222;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>body {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>margin: 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 1rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: flex;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex-direction: column;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>gap: 1rem;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>h1 {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 1.5rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>margin: 0;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.toolbar,</p>
+<p class="p1"><span class="Apple-converted-space">    </span>.ocr-panel {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #ffffff;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 0.75rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 0.75rem 1rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: flex;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex-wrap: wrap;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>align-items: center;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>gap: 0.75rem;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.toolbar label {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-weight: 600;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>margin-right: 0.25rem;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>input[type="file"] {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>max-width: 260px;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>button {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border: none;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 999px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 0.45rem 0.9rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 0.9rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>cursor: pointer;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #0066ff;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #fff;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>transition: transform 0.05s ease-out, box-shadow 0.05s ease-out,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>background 0.2s ease-out;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>button.secondary {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #e5e7eb;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #111827;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>button:disabled {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>opacity: 0.45;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>cursor: default;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: none;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>transform: none;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>button:not(:disabled):active {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>transform: translateY(1px) scale(0.99);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.page-info {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 0.9rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #4b5563;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.editor-wrapper {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: flex;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>gap: 1rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>align-items: flex-start;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex-wrap: wrap;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.pdf-shell {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #ffffff;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 0.75rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 0.75rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>overflow: auto;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>max-width: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>#pdf-container {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>position: relative;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: inline-block;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>#pdf-canvas {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: block;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>max-width: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>height: auto;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #f3f4f6;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>#annotation-layer {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>position: absolute;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>inset: 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pointer-events: none; /* annotations themselves enable pointer events */</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.text-annotation {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>position: absolute;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>min-width: 80px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>min-height: 20px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 2px 4px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-bottom: 1px dashed #111827;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: rgba(255, 255, 255, 0.7);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 12px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #111827;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>outline: none;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>cursor: move;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pointer-events: auto;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 2px;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.text-annotation:focus {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-bottom-style: solid;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.ocr-panel {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex: 1 1 260px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>min-width: 260px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>max-width: 420px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex-direction: column;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>align-items: stretch;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.ocr-panel h2 {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 1.05rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>margin: 0 0 0.5rem;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>#ocr-output {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>width: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>min-height: 200px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>resize: vertical;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",</p>
+<p class="p1"><span class="Apple-converted-space">        </span>monospace;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 0.85rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 0.5rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 0.5rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border: 1px solid #d1d5db;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>box-sizing: border-box;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.ocr-status {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 0.85rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #6b7280;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>margin-top: 0.35rem;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.badge {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>display: inline-flex;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>align-items: center;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>gap: 0.25rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>padding: 0.2rem 0.55rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 999px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>font-size: 0.75rem;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #eff6ff;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>color: #1d4ed8;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.badge-dot {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>width: 6px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>height: 6px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>border-radius: 999px;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>background: #1d4ed8;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>.toolbar-spacer {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>flex: 1;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;header&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;h1&gt;PDF Editor with OCR &amp; Export&lt;/h1&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="badge"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;span class="badge-dot"&gt;&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>Client-side only: your files stay in the browser</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/header&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;section class="toolbar"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;label for="file-input"&gt;PDF file:&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;input id="file-input" type="file" accept="application/pdf" /&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button id="prev-page" class="secondary" disabled&gt;&amp;laquo; Prev&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button id="next-page" class="secondary" disabled&gt;Next &amp;raquo;&lt;/button&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span class="page-info" id="page-info"&gt;No PDF loaded&lt;/span&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button id="add-text" disabled&gt;Add text field&lt;/button&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;span class="toolbar-spacer"&gt;&lt;/span&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button id="export-pdf" class="secondary" disabled&gt;Export edited PDF&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;section class="editor-wrapper"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="pdf-shell"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div id="pdf-container"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;canvas id="pdf-canvas"&gt;&lt;/canvas&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div id="annotation-layer"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;aside class="ocr-panel"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;h2&gt;OCR (Text from current page)&lt;/h2&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button id="ocr-btn" class="secondary" disabled&gt;Run OCR on this page&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;button id="ocr-insert" class="secondary" disabled&gt;Insert OCR as note&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;textarea id="ocr-output" placeholder="Recognized text will appear here..."&gt;&lt;/textarea&gt;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="ocr-status" id="ocr-status"&gt;Load a PDF to enable OCR.&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/aside&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/section&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- PDF.js setup ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>pdfjsLib.GlobalWorkerOptions.workerSrc =</p>
+<p class="p1"><span class="Apple-converted-space">      </span>"https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.worker.min.js";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>let pdfDoc = null;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let pageNum = 1;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const scale = 1.3;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const fileInput = document.getElementById("file-input");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const pdfCanvas = document.getElementById("pdf-canvas");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const pdfCtx = pdfCanvas.getContext("2d");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const pdfContainer = document.getElementById("pdf-container");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const annotationLayer = document.getElementById("annotation-layer");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const prevBtn = document.getElementById("prev-page");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const nextBtn = document.getElementById("next-page");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const pageInfo = document.getElementById("page-info");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const addTextBtn = document.getElementById("add-text");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const exportBtn = document.getElementById("export-pdf");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ocrBtn = document.getElementById("ocr-btn");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ocrInsertBtn = document.getElementById("ocr-insert");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ocrOutput = document.getElementById("ocr-output");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const ocrStatus = document.getElementById("ocr-status");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>let isAddingText = false;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let isRendering = false;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Annotation persistence: page -&gt; [{id, x, y, text}]</p>
+<p class="p1"><span class="Apple-converted-space">    </span>const annotationsByPage = {};</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let annotationIdCounter = 1;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function clearAnnotations() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>annotationLayer.innerHTML = "";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function updatePageInfo() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>pageInfo.textContent = "No PDF loaded";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} else {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>pageInfo.textContent = `Page ${pageNum} of ${pdfDoc.numPages}`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function getPageAnnotations(page) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!annotationsByPage[page]) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>annotationsByPage[page] = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return annotationsByPage[page];</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function syncAnnotationDataFromElement(el) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const id = Number(el.dataset.id);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const page = Number(el.dataset.page);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const pageAnnotations = getPageAnnotations(page);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const obj = pageAnnotations.find(a =&gt; a.id === id);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!obj) return;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>obj.text = el.textContent || "";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>obj.x = parseFloat(el.style.left) || 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>obj.y = parseFloat(el.style.top) || 0;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function createAnnotationElement(data) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const note = document.createElement("div");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.className = "text-annotation";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.contentEditable = "true";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.textContent = data.text || "Click to edit";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.style.left = data.x + "px";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.style.top = data.y + "px";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.dataset.id = data.id;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.dataset.page = data.page;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>annotationLayer.appendChild(note);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// Drag &amp; drop</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let dragging = false;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let offsetX = 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let offsetY = 0;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.addEventListener("mousedown", (ev) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>dragging = true;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>offsetX = ev.offsetX;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>offsetY = ev.offsetY;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>ev.stopPropagation();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>window.addEventListener("mousemove", (ev) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (!dragging) return;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const rect = pdfContainer.getBoundingClientRect();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>note.style.left = ev.clientX - rect.left - offsetX + "px";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>note.style.top = ev.clientY - rect.top - offsetY + "px";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>window.addEventListener("mouseup", () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (dragging) {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>dragging = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>syncAnnotationDataFromElement(note);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// Text changes</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.addEventListener("input", () =&gt; syncAnnotationDataFromElement(note));</p>
+<p class="p1"><span class="Apple-converted-space">      </span>note.addEventListener("blur", () =&gt; syncAnnotationDataFromElement(note));</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>return note;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function addNewAnnotationAt(x, y, initialText = "") {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const data = {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>id: annotationIdCounter++,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>page: pageNum,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>x,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>y,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>text: initialText || ""</p>
+<p class="p1"><span class="Apple-converted-space">      </span>};</p>
+<p class="p1"><span class="Apple-converted-space">      </span>getPageAnnotations(pageNum).push(data);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>createAnnotationElement(data);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function showAnnotationsForPage(page) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>clearAnnotations();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const pageAnnotations = getPageAnnotations(page);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pageAnnotations.forEach(data =&gt; createAnnotationElement(data));</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function renderPage(num) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>isRendering = true;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>clearAnnotations();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updatePageInfo();</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const page = await pdfDoc.getPage(num);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const viewport = page.getViewport({ scale });</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>pdfCanvas.height = viewport.height;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pdfCanvas.width = viewport.width;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>annotationLayer.style.width = pdfCanvas.width + "px";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>annotationLayer.style.height = pdfCanvas.height + "px";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const renderContext = {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>canvasContext: pdfCtx,</p>
+<p class="p1"><span class="Apple-converted-space">        </span>viewport: viewport,</p>
+<p class="p1"><span class="Apple-converted-space">      </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>await page.render(renderContext).promise;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>isRendering = false;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>showAnnotationsForPage(num);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Render a page into an offscreen canvas, including annotations, for export</p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function renderPageToCanvasWithAnnotations(pageNumber) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const page = await pdfDoc.getPage(pageNumber);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const viewport = page.getViewport({ scale });</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const canvas = document.createElement("canvas");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const ctx = canvas.getContext("2d");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>canvas.width = viewport.width;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>canvas.height = viewport.height;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>await page.render({ canvasContext: ctx, viewport }).promise;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// Draw annotations text</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const annos = getPageAnnotations(pageNumber);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>ctx.font = "12px sans-serif";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>ctx.fillStyle = "#000000";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const lineHeight = 14;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>annos.forEach(a =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const lines = (a.text || "").split(/\r?\n/);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>lines.forEach((line, idx) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ctx.fillText(line, a.x + 2, a.y + 12 + idx * lineHeight);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>return canvas;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- File loading ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>fileInput.addEventListener("change", (e) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const file = e.target.files[0];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!file) return;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const reader = new FileReader();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>reader.onload = function (ev) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const typedarray = new Uint8Array(ev.target.result);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>pdfjsLib.getDocument(typedarray).promise.then(async (doc) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pdfDoc = doc;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pageNum = 1;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">          </span>// Reset annotations</p>
+<p class="p1"><span class="Apple-converted-space">          </span>for (const key in annotationsByPage) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>delete annotationsByPage[key];</p>
+<p class="p1"><span class="Apple-converted-space">          </span>}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>annotationIdCounter = 1;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">          </span>await renderPage(pageNum);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">          </span>prevBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>nextBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>addTextBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrInsertBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>exportBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrStatus.textContent = "Ready for OCR on current page.";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}).catch((err) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>console.error("Error loading PDF:", err);</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pdfDoc = null;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>prevBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>nextBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>addTextBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrInsertBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>exportBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>ocrStatus.textContent = "Failed to load PDF.";</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pageInfo.textContent = "No PDF loaded";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>reader.readAsArrayBuffer(file);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- Page navigation ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>prevBtn.addEventListener("click", async () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc || isRendering) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (pageNum &lt;= 1) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pageNum--;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>await renderPage(pageNum);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>nextBtn.addEventListener("click", async () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc || isRendering) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (pageNum &gt;= pdfDoc.numPages) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>pageNum++;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>await renderPage(pageNum);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- Annotation: add text fields ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>addTextBtn.addEventListener("click", () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>isAddingText = !isAddingText;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>addTextBtn.textContent = isAddingText ? "Click on page to add…" : "Add text field";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>pdfContainer.addEventListener("click", (e) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc || !isAddingText) return;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const rect = pdfContainer.getBoundingClientRect();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const x = e.clientX - rect.left;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const y = e.clientY - rect.top;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>addNewAnnotationAt(x, y, "");</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- OCR using Tesseract.js ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>ocrBtn.addEventListener("click", async () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) return;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>ocrStatus.textContent = "Running OCR…";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>ocrBtn.disabled = true;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const { data: { text) } } = await Tesseract.recognize(pdfCanvas, "eng", {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>logger: (m) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (m.status === "recognizing text") {</p>
+<p class="p1"><span class="Apple-converted-space">              </span>const pct = Math.round((m.progress || 0) * 100);</p>
+<p class="p1"><span class="Apple-converted-space">              </span>ocrStatus.textContent = `Recognizing text… ${pct}%`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">          </span>},</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>ocrOutput.value = text.trim();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>ocrStatus.textContent = "OCR complete.";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} catch (err) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>console.error("OCR error:", err);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>ocrStatus.textContent = "Error during OCR. Check console for details.";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} finally {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>ocrBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// Insert OCR text as a big note on the page</p>
+<p class="p1"><span class="Apple-converted-space">    </span>ocrInsertBtn.addEventListener("click", () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const text = ocrOutput.value.trim();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!text) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>alert("No OCR text to insert.");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>addNewAnnotationAt(20, 20, text);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>// --- Export edited PDF ---</p>
+<p class="p1"><span class="Apple-converted-space">    </span>exportBtn.addEventListener("click", async () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!pdfDoc) return;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const { jsPDF } = window.jspdf;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>exportBtn.disabled = true;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const originalLabel = exportBtn.textContent;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>exportBtn.textContent = "Exporting…";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>// First page to determine size</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const firstCanvas = await renderPageToCanvasWithAnnotations(1);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const pdf = new jsPDF({</p>
+<p class="p1"><span class="Apple-converted-space">          </span>unit: "px",</p>
+<p class="p1"><span class="Apple-converted-space">          </span>format: [firstCanvas.width, firstCanvas.height]</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>pdf.addImage(</p>
+<p class="p1"><span class="Apple-converted-space">          </span>firstCanvas.toDataURL("image/png"),</p>
+<p class="p1"><span class="Apple-converted-space">          </span>"PNG",</p>
+<p class="p1"><span class="Apple-converted-space">          </span>0,</p>
+<p class="p1"><span class="Apple-converted-space">          </span>0,</p>
+<p class="p1"><span class="Apple-converted-space">          </span>firstCanvas.width,</p>
+<p class="p1"><span class="Apple-converted-space">          </span>firstCanvas.height</p>
+<p class="p1"><span class="Apple-converted-space">        </span>);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>for (let p = 2; p &lt;= pdfDoc.numPages; p++) {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>const canvas = await renderPageToCanvasWithAnnotations(p);</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pdf.addPage([canvas.width, canvas.height]);</p>
+<p class="p1"><span class="Apple-converted-space">          </span>pdf.addImage(</p>
+<p class="p1"><span class="Apple-converted-space">            </span>canvas.toDataURL("image/png"),</p>
+<p class="p1"><span class="Apple-converted-space">            </span>"PNG",</p>
+<p class="p1"><span class="Apple-converted-space">            </span>0,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>0,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>canvas.width,</p>
+<p class="p1"><span class="Apple-converted-space">            </span>canvas.height</p>
+<p class="p1"><span class="Apple-converted-space">          </span>);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>pdf.save("edited.pdf");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} catch (err) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>console.error("Export error:", err);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>alert("There was an error exporting the PDF. See console for details.");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} finally {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>exportBtn.textContent = originalLabel;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>exportBtn.disabled = false;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>});</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>

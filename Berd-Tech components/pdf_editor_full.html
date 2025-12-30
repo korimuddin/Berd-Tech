@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Editor with OCR & Export</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- PDF.js -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.min.js"></script>
+  <!-- Tesseract.js (OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- jsPDF (export) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f7;
+      color: #111827;
+    }
+    body {
+      margin: 0;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+    .toolbar,
+    .ocr-panel {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .toolbar label {
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    input[type="file"] {
+      max-width: 260px;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+      transition: transform 0.05s, box-shadow 0.05s, background 0.15s;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+    button:not(:disabled):active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .page-info {
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+    .toolbar-spacer {
+      flex: 1;
+    }
+    .editor-wrapper {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .pdf-shell {
+      background: #ffffff;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      max-width: 100%;
+      overflow: auto;
+    }
+    #pdf-container {
+      position: relative;
+      display: inline-block;
+    }
+    #pdf-canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background: #f3f4f6;
+    }
+    #annotation-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .text-annotation {
+      position: absolute;
+      min-width: 80px;
+      min-height: 20px;
+      padding: 2px 4px;
+      border-bottom: 1px dashed #111827;
+      background: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      color: #111827;
+      outline: none;
+      cursor: move;
+      pointer-events: auto;
+      border-radius: 2px;
+    }
+    .text-annotation:focus {
+      border-bottom-style: solid;
+    }
+    .ocr-panel {
+      flex: 1 1 260px;
+      min-width: 260px;
+      max-width: 420px;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .ocr-panel h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+    }
+    #ocr-output {
+      width: 100%;
+      min-height: 200px;
+      resize: vertical;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-size: 0.85rem;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #d1d5db;
+      box-sizing: border-box;
+    }
+    .ocr-status {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 0.35rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #eff6ff;
+      color: #1d4ed8;
+      margin-top: 0.3rem;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PDF Editor with OCR & Export</h1>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      All processing is done in your browser
+    </div>
+  </header>
+
+  <section class="toolbar">
+    <div>
+      <label for="file-input">PDF file:</label>
+      <input id="file-input" type="file" accept="application/pdf" />
+    </div>
+
+    <button id="prev-page" class="secondary" disabled>&laquo; Prev</button>
+    <button id="next-page" class="secondary" disabled>Next &raquo;</button>
+
+    <span id="page-info" class="page-info">No PDF loaded</span>
+
+    <button id="add-text" disabled>Add text field</button>
+
+    <span class="toolbar-spacer"></span>
+
+    <button id="export-pdf" class="secondary" disabled>Export edited PDF</button>
+  </section>
+
+  <section class="editor-wrapper">
+    <div class="pdf-shell">
+      <div id="pdf-container">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="annotation-layer"></div>
+      </div>
+    </div>
+
+    <aside class="ocr-panel">
+      <h2>OCR (current page)</h2>
+      <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+        <button id="ocr-btn" class="secondary" disabled>Run OCR</button>
+        <button id="ocr-insert" class="secondary" disabled>Insert OCR as note</button>
+      </div>
+      <textarea id="ocr-output" placeholder="Recognized text will appear here..."></textarea>
+      <div id="ocr-status" class="ocr-status">Load a PDF to enable OCR.</div>
+    </aside>
+  </section>
+
+  <script>
+    // --- PDF.js setup ---
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@2.7.570/build/pdf.worker.min.js";
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    const scale = 1.3;
+
+    const fileInput = document.getElementById("file-input");
+    const pdfCanvas = document.getElementById("pdf-canvas");
+    const pdfCtx = pdfCanvas.getContext("2d");
+    const pdfContainer = document.getElementById("pdf-container");
+    const annotationLayer = document.getElementById("annotation-layer");
+
+    const prevBtn = document.getElementById("prev-page");
+    const nextBtn = document.getElementById("next-page");
+    const pageInfo = document.getElementById("page-info");
+    const addTextBtn = document.getElementById("add-text");
+    const exportBtn = document.getElementById("export-pdf");
+
+    const ocrBtn = document.getElementById("ocr-btn");
+    const ocrInsertBtn = document.getElementById("ocr-insert");
+    const ocrOutput = document.getElementById("ocr-output");
+    const ocrStatus = document.getElementById("ocr-status");
+
+    let isAddingText = false;
+    let isRendering = false;
+
+    // Store annotations per page: { pageNumber: [ {id, page, x, y, text} ] }
+    const annotationsByPage = {};
+    let annotationIdCounter = 1;
+
+    function updatePageInfo() {
+      if (!pdfDoc) {
+        pageInfo.textContent = "No PDF loaded";
+      } else {
+        pageInfo.textContent = `Page ${pageNum} of ${pdfDoc.numPages}`;
+      }
+    }
+
+    function clearAnnotations() {
+      annotationLayer.innerHTML = "";
+    }
+
+    function getPageAnnotations(page) {
+      if (!annotationsByPage[page]) {
+        annotationsByPage[page] = [];
+      }
+      return annotationsByPage[page];
+    }
+
+    function syncAnnotationDataFromElement(el) {
+      const id = Number(el.dataset.id);
+      const page = Number(el.dataset.page);
+      const list = getPageAnnotations(page);
+      const obj = list.find(a => a.id === id);
+      if (!obj) return;
+      obj.text = el.textContent || "";
+      obj.x = parseFloat(el.style.left) || 0;
+      obj.y = parseFloat(el.style.top) || 0;
+    }
+
+    function createAnnotationElement(data) {
+      const note = document.createElement("div");
+      note.className = "text-annotation";
+      note.contentEditable = "true";
+      note.textContent = data.text || "Click to edit";
+
+      note.style.left = data.x + "px";
+      note.style.top = data.y + "px";
+
+      note.dataset.id = data.id;
+      note.dataset.page = data.page;
+
+      annotationLayer.appendChild(note);
+
+      // Dragging
+      let dragging = false;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      note.addEventListener("mousedown", (ev) => {
+        dragging = true;
+        offsetX = ev.offsetX;
+        offsetY = ev.offsetY;
+        ev.stopPropagation();
+      });
+
+      window.addEventListener("mousemove", (ev) => {
+        if (!dragging) return;
+        const rect = pdfContainer.getBoundingClientRect();
+        note.style.left = ev.clientX - rect.left - offsetX + "px";
+        note.style.top = ev.clientY - rect.top - offsetY + "px";
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (dragging) {
+          dragging = false;
+          syncAnnotationDataFromElement(note);
+        }
+      });
+
+      note.addEventListener("input", () => syncAnnotationDataFromElement(note));
+      note.addEventListener("blur", () => syncAnnotationDataFromElement(note));
+
+      return note;
+    }
+
+    function addNewAnnotationAt(x, y, text = "") {
+      const data = {
+        id: annotationIdCounter++,
+        page: pageNum,
+        x,
+        y,
+        text
+      };
+      getPageAnnotations(pageNum).push(data);
+      createAnnotationElement(data);
+    }
+
+    function showAnnotationsForPage(page) {
+      clearAnnotations();
+      const list = getPageAnnotations(page);
+      list.forEach(a => createAnnotationElement(a));
+    }
+
+    async function renderPage(num) {
+      if (!pdfDoc) return;
+      isRendering = true;
+      clearAnnotations();
+      updatePageInfo();
+
+      const page = await pdfDoc.getPage(num);
+      const viewport = page.getViewport({ scale });
+
+      pdfCanvas.width = viewport.width;
+      pdfCanvas.height = viewport.height;
+
+      annotationLayer.style.width = pdfCanvas.width + "px";
+      annotationLayer.style.height = pdfCanvas.height + "px";
+
+      await page.render({
+        canvasContext: pdfCtx,
+        viewport
+      }).promise;
+
+      isRendering = false;
+      showAnnotationsForPage(num);
+    }
+
+    // For export: render page to an offscreen canvas with annotations drawn on top
+    async function renderPageToCanvasWithAnnotations(pageNumber) {
+      const page = await pdfDoc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      // Draw PDF page
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // Draw annotations
+      const annos = getPageAnnotations(pageNumber);
+      ctx.font = "12px sans-serif";
+      ctx.fillStyle = "#000000";
+      const lineHeight = 14;
+
+      annos.forEach(a => {
+        const text = a.text || "";
+        const lines = text.split(/?
+/);
+        lines.forEach((line, i) => {
+          ctx.fillText(line, a.x + 2, a.y + 12 + i * lineHeight);
+        });
+      });
+
+      return canvas;
+    }
+
+    // --- File loading ---
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const typedarray = new Uint8Array(ev.target.result);
+        pdfjsLib.getDocument(typedarray).promise
+          .then(async (doc) => {
+            pdfDoc = doc;
+            pageNum = 1;
+
+            // Reset annotations
+            for (const key in annotationsByPage) {
+              delete annotationsByPage[key];
+            }
+            annotationIdCounter = 1;
+
+            await renderPage(pageNum);
+
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+            addTextBtn.disabled = false;
+            ocrBtn.disabled = false;
+            ocrInsertBtn.disabled = false;
+            exportBtn.disabled = false;
+            ocrStatus.textContent = "Ready to run OCR on this page.";
+          })
+          .catch((err) => {
+            console.error("PDF load error:", err);
+            pdfDoc = null;
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            addTextBtn.disabled = true;
+            ocrBtn.disabled = true;
+            ocrInsertBtn.disabled = true;
+            exportBtn.disabled = true;
+            ocrStatus.textContent = "Failed to load PDF.";
+            pageInfo.textContent = "No PDF loaded";
+          });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // --- Page navigation ---
+    prevBtn.addEventListener("click", async () => {
+      if (!pdfDoc || isRendering) return;
+      if (pageNum <= 1) return;
+      pageNum--;
+      await renderPage(pageNum);
+    });
+
+    nextBtn.addEventListener("click", async () => {
+      if (!pdfDoc || isRendering) return;
+      if (pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      await renderPage(pageNum);
+    });
+
+    // --- Add text fields ---
+    addTextBtn.addEventListener("click", () => {
+      if (!pdfDoc) return;
+      isAddingText = !isAddingText;
+      addTextBtn.textContent = isAddingText ? "Click page to add…" : "Add text field";
+    });
+
+    pdfContainer.addEventListener("click", (e) => {
+      if (!pdfDoc || !isAddingText) return;
+      const rect = pdfContainer.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      addNewAnnotationAt(x, y, "");
+    });
+
+    // --- OCR ---
+    ocrBtn.addEventListener("click", async () => {
+      if (!pdfDoc) return;
+
+      ocrStatus.textContent = "Running OCR…";
+      ocrBtn.disabled = true;
+
+      try {
+        const result = await Tesseract.recognize(pdfCanvas, "eng", {
+          logger: (m) => {
+            if (m.status === "recognizing text") {
+              const pct = Math.round((m.progress || 0) * 100);
+              ocrStatus.textContent = `Recognizing text… ${pct}%`;
+            }
+          },
+        });
+
+        const text = (result.data && result.data.text) ? result.data.text : "";
+        ocrOutput.value = text.trim();
+        ocrStatus.textContent = "OCR complete.";
+      } catch (err) {
+        console.error("OCR error:", err);
+        ocrStatus.textContent = "Error during OCR. See console for details.";
+      } finally {
+        ocrBtn.disabled = false;
+      }
+    });
+
+    ocrInsertBtn.addEventListener("click", () => {
+      if (!pdfDoc) return;
+      const text = ocrOutput.value.trim();
+      if (!text) {
+        alert("No OCR text to insert.");
+        return;
+      }
+      addNewAnnotationAt(20, 20, text);
+    });
+
+    // --- Export edited PDF ---
+    exportBtn.addEventListener("click", async () => {
+      if (!pdfDoc) return;
+      const { jsPDF } = window.jspdf;
+
+      exportBtn.disabled = true;
+      const oldLabel = exportBtn.textContent;
+      exportBtn.textContent = "Exporting…";
+
+      try {
+        // Render first page
+        const firstCanvas = await renderPageToCanvasWithAnnotations(1);
+        const pdf = new jsPDF({
+          unit: "px",
+          format: [firstCanvas.width, firstCanvas.height]
+        });
+
+        pdf.addImage(
+          firstCanvas.toDataURL("image/png"),
+          "PNG",
+          0,
+          0,
+          firstCanvas.width,
+          firstCanvas.height
+        );
+
+        // Remaining pages
+        for (let p = 2; p <= pdfDoc.numPages; p++) {
+          const canvas = await renderPageToCanvasWithAnnotations(p);
+          pdf.addPage([canvas.width, canvas.height]);
+          pdf.addImage(
+            canvas.toDataURL("image/png"),
+            "PNG",
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+        }
+
+        pdf.save("edited.pdf");
+      } catch (err) {
+        console.error("Export error:", err);
+        alert("There was an error exporting the PDF. Check the console for details.");
+      } finally {
+        exportBtn.textContent = oldLabel;
+        exportBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
