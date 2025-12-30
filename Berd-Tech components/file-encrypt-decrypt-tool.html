@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>File Encrypt / Decrypt Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 40px; background: #0f172a; color: #e5e7eb; }
+    .container { background: #020617; padding: 24px 24px 28px; border-radius: 16px; max-width: 640px; margin: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.6); border: 1px solid rgba(148,163,184,0.4);}
+    h2 { margin-top: 0; margin-bottom: 4px; }
+    .subtitle { font-size: 0.9rem; color: #9ca3af; margin-bottom: 16px; }
+    .modes { display: flex; gap: 12px; margin-bottom: 16px; }
+    .mode-pill { flex: 1; border-radius: 999px; padding: 6px 10px; border: 1px solid rgba(148,163,184,0.6); display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; }
+    .mode-pill input { display: none; }
+    .mode-pill span.dot { width: 12px; height: 12px; border-radius: 999px; border: 2px solid rgba(148,163,184,0.8); box-sizing: border-box; }
+    .mode-pill.active { border-color: #38bdf8; background: rgba(15,23,42,0.9); }
+    .mode-pill.active span.dot { border-color: #38bdf8; background: #38bdf8; }
+    .dropzone {
+      border: 1px dashed rgba(148, 163, 184, 0.8); padding: 24px; text-align: center;
+      border-radius: 14px; background: rgba(15,23,42,0.9); cursor: pointer;
+      transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
+    }
+    .dropzone.dragover { border-color: #38bdf8; background: rgba(15,23,42,1); transform: translateY(-1px); }
+    .dropzone strong { display: block; margin-bottom: 4px; }
+    .dropzone span { font-size: 0.8rem; color: #9ca3af; }
+    .field { margin-top: 16px; }
+    label { font-size: 0.8rem; color: #9ca3af; display:block; margin-bottom: 4px; }
+    select, input[type="password"] {
+      padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(15,23,42,0.95); color: #e5e7eb; font-size: 0.9rem; width: 100%; box-sizing: border-box;
+    }
+    select:focus, input[type="password"]:focus { border-color: #38bdf8; outline: none; box-shadow: 0 0 0 1px rgba(56,189,248,0.4);}
+    button {
+      padding: 8px 18px; border-radius: 999px; border:none; background: linear-gradient(to right,#38bdf8,#6366f1);
+      color:white; font-size: 0.9rem; font-weight:500; cursor:pointer; margin-top:18px;
+      box-shadow:0 14px 35px rgba(56,189,248,0.4); transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    }
+    button:disabled { opacity:0.5; cursor:not-allowed; box-shadow:none; transform:none; }
+    button:not(:disabled):hover { transform: translateY(-1px); box-shadow:0 18px 40px rgba(56,189,248,0.5);}
+    #fileInfo { margin-top:8px; font-size:0.8rem; color:#e5e7eb;}
+    #status { margin-top:10px; font-size:0.8rem; color:#9ca3af;}
+    #status.error { color:#fca5a5;}
+    #status.success { color:#bbf7d0;}
+    #download { margin-top:12px; font-size:0.85rem;}
+    #download a { color:#38bdf8; text-decoration:none; font-weight:500;}
+    #download a:hover { text-decoration:underline;}
+    .footer { margin-top:18px; font-size:0.75rem; color:#6b7280;}
+    .footer code { background:rgba(15,23,42,0.9); border-radius:6px; padding:2px 6px; border:1px solid rgba(55,65,81,0.9); font-size:0.7rem;}
+    @media (max-width: 480px) {
+      body { padding: 16px; }
+      .container { padding:18px 16px 22px; border-radius:14px;}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>File Encrypt / Decrypt</h2>
+  <div class="subtitle">
+    Encrypt any file with a password, or upload an encrypted <code>.enc</code> file to decrypt it. All operations happen locally in your browser.
+  </div>
+
+  <div class="modes">
+    <label class="mode-pill active" data-mode="encrypt">
+      <input type="radio" name="mode" value="encrypt" checked />
+      <span class="dot"></span>
+      <span>Encrypt</span>
+    </label>
+    <label class="mode-pill" data-mode="decrypt">
+      <input type="radio" name="mode" value="decrypt" />
+      <span class="dot"></span>
+      <span>Decrypt</span>
+    </label>
+  </div>
+
+  <div id="dropzone" class="dropzone">
+    <strong id="dropTitle">Drop a file to encrypt</strong>
+    <span id="dropSubtitle">or click to choose from your device</span>
+    <input id="fileInput" type="file" style="display:none" />
+  </div>
+
+  <div id="fileInfo"></div>
+
+  <div class="field">
+    <label for="algorithm">Encryption algorithm (used in Encrypt mode)</label>
+    <select id="algorithm">
+      <option value="AES-GCM-256">AES-GCM (256-bit) – recommended</option>
+      <option value="AES-CBC-256">AES-CBC (256-bit)</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="Enter a strong password" />
+  </div>
+
+  <button id="actionBtn">Encrypt file</button>
+
+  <p id="status">Select a file to get started.</p>
+  <div id="download"></div>
+
+  <div class="footer">
+    Encrypted files start with a small <code>ENC1</code> header that stores the algorithm, salt and IV so the tool can decrypt them later.
+  </div>
+</div>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileInfo = document.getElementById('fileInfo');
+  const algorithmSelect = document.getElementById('algorithm');
+  const passwordInput = document.getElementById('password');
+  const statusEl = document.getElementById('status');
+  const downloadEl = document.getElementById('download');
+  const actionBtn = document.getElementById('actionBtn');
+  const dropTitle = document.getElementById('dropTitle');
+  const dropSubtitle = document.getElementById('dropSubtitle');
+  const modePills = document.querySelectorAll('.mode-pill');
+
+  let mode = 'encrypt';
+  let selectedFile = null;
+
+  // Mode switching
+  modePills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      modePills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      mode = pill.getAttribute('data-mode');
+      selectedFile = null;
+      fileInfo.textContent = '';
+      downloadEl.innerHTML = '';
+      statusEl.className = '';
+      if (mode === 'encrypt') {
+        dropTitle.textContent = 'Drop a file to encrypt';
+        dropSubtitle.textContent = 'or click to choose from your device';
+        actionBtn.textContent = 'Encrypt file';
+        statusEl.textContent = 'Select a file to encrypt.';
+      } else {
+        dropTitle.textContent = 'Drop an encrypted .enc file to decrypt';
+        dropSubtitle.textContent = 'or click to choose from your device';
+        actionBtn.textContent = 'Decrypt file';
+        statusEl.textContent = 'Select an encrypted file to decrypt.';
+      }
+    });
+  });
+
+  // Drag & drop setup
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  });
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+  dropzone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+  });
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function setFile(file) {
+    selectedFile = file;
+    const kb = (file.size / 1024).toFixed(1);
+    fileInfo.innerHTML = '<p><strong>Selected:</strong> ' + file.name + ' (' + kb + ' KB)</p>';
+    downloadEl.innerHTML = '';
+    statusEl.textContent = mode === 'encrypt' ? 'Ready to encrypt.' : 'Ready to decrypt.';
+    statusEl.className = '';
+  }
+
+  function getAlgorithmConfig(selection) {
+    if (selection === 'AES-CBC-256') {
+      return { name: 'AES-CBC', keyLength: 256, ivLength: 16, algoId: 2 };
+    }
+    return { name: 'AES-GCM', keyLength: 256, ivLength: 12, algoId: 1 }; // default
+  }
+
+  async function deriveKey(password, salt, algoName, keyLength) {
+    const enc = new TextEncoder();
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(password),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt,
+        iterations: 150000,
+        hash: 'SHA-256'
+      },
+      baseKey,
+      {
+        name: algoName,
+        length: keyLength
+      },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  function randomBytes(length) {
+    const arr = new Uint8Array(length);
+    crypto.getRandomValues(arr);
+    return arr;
+  }
+
+  function buildHeader(algoConfig, salt, iv) {
+    // "ENC1" magic + algoId + salt + iv
+    const magic = new Uint8Array([0x45, 0x4E, 0x43, 0x31]); // "ENC1"
+    const header = new Uint8Array(magic.length + 1 + salt.length + iv.length);
+    header.set(magic, 0);
+    header[4] = algoConfig.algoId;
+    header.set(salt, 5);
+    header.set(iv, 5 + salt.length);
+    return header;
+  }
+
+  function parseHeader(bytes) {
+    if (bytes.length < 4 + 1 + 16 + 12) { // minimum for GCM IV len
+      throw new Error('File too short to be a valid encrypted file.');
+    }
+    if (bytes[0] !== 0x45 || bytes[1] !== 0x4E || bytes[2] !== 0x43 || bytes[3] !== 0x31) {
+      throw new Error('Invalid header magic. Not an ENC1 file.');
+    }
+    const algoId = bytes[4];
+    let algoConfig;
+    if (algoId === 1) {
+      algoConfig = { name: 'AES-GCM', keyLength: 256, ivLength: 12, algoId: 1 };
+    } else if (algoId === 2) {
+      algoConfig = { name: 'AES-CBC', keyLength: 256, ivLength: 16, algoId: 2 };
+    } else {
+      throw new Error('Unknown algorithm id in header.');
+    }
+    const saltStart = 5;
+    const saltEnd = saltStart + 16;
+    if (bytes.length < saltEnd + algoConfig.ivLength + 1) {
+      throw new Error('Header is incomplete.');
+    }
+    const salt = bytes.slice(saltStart, saltEnd);
+    const ivStart = saltEnd;
+    const ivEnd = ivStart + algoConfig.ivLength;
+    const iv = bytes.slice(ivStart, ivEnd);
+    const ciphertext = bytes.slice(ivEnd);
+    return { algoConfig, salt, iv, ciphertext };
+  }
+
+  actionBtn.addEventListener('click', async () => {
+    if (!selectedFile) {
+      statusEl.textContent = 'Please select a file first.';
+      statusEl.className = 'error';
+      return;
+    }
+    const password = passwordInput.value;
+    if (!password || password.length < 6) {
+      statusEl.textContent = 'Please enter a password (at least 6 characters).';
+      statusEl.className = 'error';
+      return;
+    }
+    if (!window.crypto || !window.crypto.subtle) {
+      statusEl.textContent = 'Web Crypto API is not supported in this browser.';
+      statusEl.className = 'error';
+      return;
+    }
+
+    statusEl.textContent = (mode === 'encrypt' ? 'Encrypting' : 'Decrypting') + '...';
+    statusEl.className = '';
+    actionBtn.disabled = true;
+    downloadEl.innerHTML = '';
+
+    try {
+      if (mode === 'encrypt') {
+        await handleEncrypt(password);
+      } else {
+        await handleDecrypt(password);
+      }
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Error: ' + (err.message || err);
+      statusEl.className = 'error';
+    } finally {
+      actionBtn.disabled = false;
+    }
+  });
+
+  async function handleEncrypt(password) {
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    const algoConfig = getAlgorithmConfig(algorithmSelect.value);
+    const salt = randomBytes(16);
+    const iv = randomBytes(algoConfig.ivLength);
+
+    const key = await deriveKey(password, salt, algoConfig.name, algoConfig.keyLength);
+    const encrypted = await crypto.subtle.encrypt(
+      { name: algoConfig.name, iv },
+      key,
+      arrayBuffer
+    );
+
+    const header = buildHeader(algoConfig, salt, iv);
+    const cipherBytes = new Uint8Array(encrypted);
+    const output = new Uint8Array(header.length + cipherBytes.length);
+    output.set(header, 0);
+    output.set(cipherBytes, header.length);
+
+    const blob = new Blob([output], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const encryptedName = selectedFile.name + '.enc';
+
+    downloadEl.innerHTML = 'Encrypted successfully as <strong>' + encryptedName +
+      '</strong>.<br><a href="' + url + '" download="' + encryptedName +
+      '">Download encrypted file</a>';
+    statusEl.textContent = 'Encryption complete. Keep your password safe.';
+    statusEl.className = 'success';
+  }
+
+  async function handleDecrypt(password) {
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const { algoConfig, salt, iv, ciphertext } = parseHeader(bytes);
+
+    const key = await deriveKey(password, salt, algoConfig.name, algoConfig.keyLength);
+    let decrypted;
+    try {
+      decrypted = await crypto.subtle.decrypt(
+        { name: algoConfig.name, iv },
+        key,
+        ciphertext
+      );
+    } catch (e) {
+      throw new Error('Decryption failed. Wrong password or corrupted file.');
+    }
+
+    const blob = new Blob([decrypted], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+
+    let originalName = selectedFile.name;
+    if (originalName.toLowerCase().endsWith('.enc')) {
+      originalName = originalName.slice(0, -4);
+    } else {
+      originalName = originalName + '.decrypted';
+    }
+
+    downloadEl.innerHTML = 'Decryption successful.<br><a href="' + url +
+      '" download="' + originalName + '">Download decrypted file</a>';
+    statusEl.textContent = 'Decryption complete.';
+    statusEl.className = 'success';
+  }
+</script>
+</body>
+</html>
